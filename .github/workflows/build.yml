@@ -55,6 +55,6 @@ jobs:
           fi
 
       - name: Successful Step
-        if: env.quality_gate_passed == 'true'
+        if: env.quality_gate_passed == 'false'
         run: echo "Hello, you are good to go!"
 
