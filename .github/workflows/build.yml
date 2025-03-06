@@ -33,34 +33,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Ensures better analysis relevance
+          fetch-depth: 0  # Ensure full history for better analysis
 
       - name: SonarQube Scan
+        id: sonar
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
 
-      - name: Check SonarQube Quality Gate
-        id: quality-gate
+      - name: Check Quality Gate
+        id: quality_gate
         run: |
-          sleep 10  # Wait for SonarCloud to process results
-          STATUS=$(curl -s -u "${{ secrets.SONAR_TOKEN }}:" \
-            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=${{ vars.SONAR_PROJECT_KEY }}" \
-            | jq -r '.projectStatus.status')
-
-          if [[ "$STATUS" == "OK" ]]; then
-            echo "Quality Gate Passed!"
+          status=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: "https://sonarcloud.io/api/qualitygates/project_status?projectKey=${{ vars.SONAR_PROJECT_KEY }}" | jq -r '.projectStatus.status')
+          echo "Quality Gate Status: $status"
+          if [[ "$status" == "OK" ]]; then
             echo "quality_gate_passed=true" >> $GITHUB_ENV
           else
-            echo "Quality Gate Failed!"
             echo "quality_gate_passed=false" >> $GITHUB_ENV
-            exit 1  # Fails the pipeline if Quality Gate does not pass
+            exit 1  # Fail the job if quality gate fails
+          fi
 
-  successful_step:
-    name: Successful Step
-    needs: sonarqube
-    runs-on: ubuntu-latest
-    if: success() && env.quality_gate_passed == 'true'
-    steps:
-      - name: Print Success Message
+      - name: Successful Step
+        if: env.quality_gate_passed == 'true'
         run: echo "Hello, you are good to go!"
+
