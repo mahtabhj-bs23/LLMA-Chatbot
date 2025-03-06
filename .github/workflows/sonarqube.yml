@@ -1,0 +1,35 @@
+name: SonarQube Analysis
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sonarqube:
+    name: SonarQube
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensure full history for better analysis
+
+      - name: SonarQube Scan
+        id: sonar
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+
+      - name: Check Quality Gate
+        id: quality_gate
+        run: |
+          status=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: "https://sonarcloud.io/api/qualitygates/project_status?projectKey=${{ vars.SONAR_PROJECT_KEY }}" | jq -r '.projectStatus.status')
+          echo "Quality Gate Status: $status"
+          if [[ "$status" == "OK" ]]; then
+            echo "quality_gate_passed=true" >> $GITHUB_ENV
+          else
+            echo "quality_gate_passed=false" >> $GITHUB_ENV
+            exit 1  # Fail the job if quality gate fails
+          fi

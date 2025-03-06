@@ -1,0 +1,15 @@
+name: Success Workflow
+on:
+  workflow_run:
+    workflows: ["SonarQube Analysis"]  # It runs only when 'SonarQube Analysis' passes
+    types:
+      - completed
+
+jobs:
+  success:
+    name: Quality Gate Passed
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}  # Only run if the previous workflow succeeded
+    steps:
+      - name: Successful Step
+        run: echo "Hello, you are good to go!"
