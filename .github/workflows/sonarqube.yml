@@ -25,11 +25,18 @@ jobs:
       - name: Check Quality Gate
         id: quality_gate
         run: |
-          status=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: "https://sonarcloud.io/api/qualitygates/project_status?projectKey=${{ vars.SONAR_PROJECT_KEY }}" | jq -r '.projectStatus.status')
-          echo "Quality Gate Status: $status"
-          if [[ "$status" == "OK" ]]; then
-            echo "quality_gate_passed=true" >> $GITHUB_ENV
-          else
-            echo "quality_gate_passed=false" >> $GITHUB_ENV
-            exit 1  # Fail the job if quality gate fails
-          fi
+            response=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: "https://sonarcloud.io/api/qualitygates/project_status?projectKey=${{ vars.SONAR_PROJECT_KEY }}")
+            status=$(echo "$response" | jq -r '.projectStatus.status')
+            conditions=$(echo "$response" | jq -r '.projectStatus.conditions[] | "\(.metricKey): \(.actualValue) \(.comparator) \(.errorThreshold) -> \(.status)"')
+  
+            echo "Quality Gate Status: $status"
+            echo "Quality Gate Results:"
+            echo "$conditions"
+  
+            if [[ "$status" == "OK" ]]; then
+              echo "quality_gate_passed=true" >> $GITHUB_ENV
+            else
+              echo "quality_gate_passed=false" >> $GITHUB_ENV
+              exit 1  # Fail the job if quality gate fails
+            fi
+  
