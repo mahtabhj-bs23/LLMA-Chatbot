@@ -25,6 +25,8 @@ jobs:
       - name: Check Quality Gate
         id: quality_gate
         run: |
+            SONAR_PROJECT_URL="https://sonarcloud.io/dashboard?id=${{ vars.SONAR_PROJECT_KEY }}"
+
             response=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: "https://sonarcloud.io/api/qualitygates/project_status?projectKey=${{ vars.SONAR_PROJECT_KEY }}")
             status=$(echo "$response" | jq -r '.projectStatus.status')
             conditions=$(echo "$response" | jq -r '.projectStatus.conditions[] | "\(.metricKey): \(.actualValue) \(.comparator) \(.errorThreshold) -> \(.status)"')
