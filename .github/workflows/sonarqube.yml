@@ -37,13 +37,6 @@ jobs:
           args: >
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
             -Dsonar.organization=nettalliansen
-            -Dsonar.sources=src
-            -Dsonar.tests=src
-            -Dsonar.test.inclusions=**/*.spec.js,**/*.test.js
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-            -Dsonar.coverage.exclusions=**/*.test.js,**/*.spec.js,**/*.config.js,**/test/**/*,**/__tests__/**/*
-            -Dsonar.cpd.exclusions=**/injection_scripts/**,**/*.test.js,**/*.spec.js,**/*.config.js,**/test/**/*
-            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/coverage/**,**/build/**,**/*.config.js,**/injection_scripts/**
             -Dsonar.qualitygate.wait=true
             -Dsonar.verbose=true
 
