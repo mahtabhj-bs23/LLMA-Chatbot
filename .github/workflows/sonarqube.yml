@@ -36,7 +36,6 @@ jobs:
         with:
           args: >
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
-            -Dsonar.organization=nettalliansen
             -Dsonar.qualitygate.wait=true
             -Dsonar.verbose=true
 
