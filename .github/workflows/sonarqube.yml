@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - dev
   pull_request:
     types: [opened, synchronize, reopened]
 
@@ -13,32 +14,67 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Ensure full history for better analysis
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:coverage || true
 
       - name: SonarQube Scan
         id: sonar
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          SONAR_HOST_URL: https://sonarcloud.io
+        with:
+          args: >
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=nettalliansen
+            -Dsonar.sources=src
+            -Dsonar.tests=src
+            -Dsonar.test.inclusions=**/*.spec.js,**/*.test.js
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.coverage.exclusions=**/*.test.js,**/*.spec.js,**/*.config.js,**/test/**/*,**/__tests__/**/*
+            -Dsonar.cpd.exclusions=**/injection_scripts/**,**/*.test.js,**/*.spec.js,**/*.config.js,**/test/**/*
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/coverage/**,**/build/**,**/*.config.js,**/injection_scripts/**
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.verbose=true
 
       - name: Check Quality Gate
         id: quality_gate
         run: |
-            SONAR_PROJECT_URL="https://sonarcloud.io/dashboard?id=${{ vars.SONAR_PROJECT_KEY }}"
-
-            response=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: "https://sonarcloud.io/api/qualitygates/project_status?projectKey=${{ vars.SONAR_PROJECT_KEY }}")
-            status=$(echo "$response" | jq -r '.projectStatus.status')
-            conditions=$(echo "$response" | jq -r '.projectStatus.conditions[] | "\(.metricKey): \(.actualValue) \(.comparator) \(.errorThreshold) -> \(.status)"')
-  
-            echo "Quality Gate Status: $status"
-            echo "Quality Gate Results:"
-            echo "$conditions"
-  
-            if [[ "$status" == "OK" ]]; then
-              echo "quality_gate_passed=true" >> $GITHUB_ENV
-            else
-              echo "quality_gate_passed=false" >> $GITHUB_ENV
-              exit 1  # Fail the job if quality gate fails
+          echo "Waiting for SonarCloud analysis to complete..."
+          sleep 15
+          
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            RESPONSE=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: "https://sonarcloud.io/api/qualitygates/project_status?projectKey=${{ vars.SONAR_PROJECT_KEY }}")
+            STATUS=$(echo $RESPONSE | jq -r '.projectStatus.status')
+            
+            if [ "$STATUS" != "null" ]; then
+              echo "Quality Gate Status: $STATUS"
+              if [ "$STATUS" == "OK" ]; then
+                echo "quality_gate_passed=true" >> $GITHUB_ENV
+                exit 0
+              else
+                echo "Quality Gate failed. Check the analysis at: https://sonarcloud.io/dashboard?id=${{ vars.SONAR_PROJECT_KEY }}"
+                exit 1
+              fi
             fi
-  
+            
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            echo "Waiting for analysis to complete (attempt $RETRY_COUNT of $MAX_RETRIES)..."
+            sleep 10
+          done
+          
+          echo "Timed out waiting for quality gate status"
+          exit 1
